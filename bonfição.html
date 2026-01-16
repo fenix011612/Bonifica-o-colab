@@ -251,3 +251,262 @@ carregar();
 
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Ranking de Bonificação</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+body{
+    font-family: Arial, sans-serif;
+    background:#f4f4f4;
+    padding:20px;
+}
+.container{max-width:1200px;margin:auto;}
+header{
+    background:#6a5acd;
+    color:#fff;
+    padding:15px;
+    border-radius:8px;
+    margin-bottom:15px;
+}
+button{
+    padding:6px 12px;
+    border:none;
+    border-radius:6px;
+    background:#6a5acd;
+    color:#fff;
+    cursor:pointer;
+    font-weight:bold;
+}
+button.sec{background:#999;}
+button.danger{background:#c0392b;}
+input,select{padding:6px;width:100%;}
+table{width:100%;border-collapse:collapse;margin-top:10px;}
+th,td{border:1px solid #ccc;padding:8px;text-align:left;}
+th{text-align:center;background:#eee;}
+.form{background:#fff;padding:15px;border-radius:8px;margin-top:15px;}
+.hidden{display:none;}
+.valor{font-weight:bold;color:green;}
+.topo{display:flex;justify-content:space-between;align-items:center;}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<header>
+    <h2>Ranking de Bonificação Semestral</h2>
+</header>
+
+<button onclick="novoColaborador()">+ Novo colaborador</button>
+
+<table id="ranking">
+<thead>
+<tr>
+    <th>#</th>
+    <th>Colaborador</th>
+    <th>Pontuação</th>
+    <th>%</th>
+    <th>Bonificação</th>
+    <th>Ação</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<div class="form hidden" id="form">
+    <div class="topo">
+        <h3>Avaliação de <span id="nomeAtual"></span></h3>
+        <button class="sec" onclick="fechar()">✖ Fechar</button>
+    </div>
+
+    <label>Nome do colaborador</label>
+    <input id="nome" oninput="atualizarNome()">
+
+    <label>Média salarial (6 meses)</label>
+    <input type="number" id="salario" oninput="calcular()">
+
+    <h4>Critérios de Avaliação</h4>
+    <table>
+        <thead>
+            <tr>
+                <th>Critério</th>
+                <th>Avaliação</th>
+            </tr>
+        </thead>
+        <tbody id="criterios"></tbody>
+    </table>
+
+    <button onclick="salvar()">Salvar avaliação</button>
+
+    <h4>Histórico do colaborador</h4>
+    <table>
+        <thead>
+            <tr>
+                <th>Data</th>
+                <th>Pontuação</th>
+                <th>%</th>
+                <th>Valor</th>
+                <th>Ação</th>
+            </tr>
+        </thead>
+        <tbody id="historico"></tbody>
+    </table>
+</div>
+</div>
+
+<script>
+const criteriosLista = [
+ "Meta Financeira – Redução de custos",
+ "Meta Qualidade – Satisfação do cliente",
+ "Meta Planejamento – Conclusões diárias",
+ "Meta Produtividade – Fidelização/captação",
+ "Qualidade do Trabalho",
+ "Produtividade",
+ "Trabalho em Equipe",
+ "Criatividade",
+ "Alinhamento, Cultura e Valores",
+ "Assiduidade e Pontualidade"
+];
+
+let colaboradores=[];
+let atual=null;
+
+function novoColaborador(){
+ colaboradores.push({
+  nome:"Colaborador "+(colaboradores.length+1),
+  salario:0,
+  historico:[],
+  pont:"0%",
+  perc:"0%",
+  valor:"R$ 0,00"
+ });
+ atualizarRanking();
+}
+
+function atualizarRanking(){
+ const tbody=document.querySelector("#ranking tbody");
+ tbody.innerHTML="";
+ colaboradores
+ .sort((a,b)=>parseFloat(b.valor.replace(/\D/g,''))-parseFloat(a.valor.replace(/\D/g,'')))
+ .forEach((c,i)=>{
+  tbody.innerHTML+=`
+   <tr>
+    <td>${i+1}</td>
+    <td>${c.nome}</td>
+    <td>${c.pont}</td>
+    <td>${c.perc}</td>
+    <td class="valor">${c.valor}</td>
+    <td><button onclick="avaliar(${i})">Avaliar</button></td>
+   </tr>`;
+ });
+}
+
+function avaliar(i){
+ atual=i;
+ const c=colaboradores[i];
+ form.classList.remove("hidden");
+ nome.value=c.nome;
+ salario.value="";
+ nomeAtual.textContent=c.nome;
+
+ criterios.innerHTML="";
+ criteriosLista.forEach(cr=>{
+  criterios.innerHTML+=`
+   <tr>
+    <td>${cr}</td>
+    <td>
+     <select onchange="calcular()">
+      <option value="0">Não atingiu</option>
+      <option value="50">Parcial</option>
+      <option value="100">Atingiu</option>
+     </select>
+    </td>
+   </tr>`;
+ });
+
+ renderHistorico();
+}
+
+function renderHistorico(){
+ const c=colaboradores[atual];
+ historico.innerHTML = c.historico.length
+ ? c.historico.map((h,i)=>`
+   <tr>
+    <td>${h.data}</td>
+    <td>${h.pont}</td>
+    <td>${h.perc}</td>
+    <td>${h.valor}</td>
+    <td>
+      <button class="danger" onclick="excluirRegistro(${i})">Excluir</button>
+    </td>
+   </tr>`).join("")
+ : `<tr><td colspan="5" style="text-align:center">Sem histórico</td></tr>`;
+}
+
+function excluirRegistro(index){
+ if(confirm("Deseja excluir este registro do histórico?")){
+  colaboradores[atual].historico.splice(index,1);
+  renderHistorico();
+ }
+}
+
+function atualizarNome(){
+ colaboradores[atual].nome=nome.value;
+ nomeAtual.textContent=nome.value;
+ atualizarRanking();
+}
+
+function calcular(){
+ const selects=document.querySelectorAll("#criterios select");
+ let soma=0;
+ selects.forEach(s=>soma+=parseInt(s.value));
+ const pont=((soma/(criteriosLista.length*100))*100).toFixed(1);
+
+ let perc=0;
+ if(pont>=50&&pont<75) perc=25;
+ else if(pont>=75&&pont<100) perc=33;
+ else if(pont==100) perc=50;
+
+ const sal=parseFloat(salario.value)||0;
+ const valor=(sal*(perc/100)).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+
+ Object.assign(colaboradores[atual],{
+  salario:sal,
+  pont:pont+"%",
+  perc:perc+"%",
+  valor
+ });
+
+ atualizarRanking();
+}
+
+function salvar(){
+ const c=colaboradores[atual];
+ c.historico.push({
+  data:new Date().toLocaleDateString("pt-BR"),
+  pont:c.pont,
+  perc:c.perc,
+  valor:c.valor
+ });
+ renderHistorico();
+ resetar();
+ alert("Avaliação salva");
+}
+
+function resetar(){
+ salario.value="";
+ document.querySelectorAll("#criterios select").forEach(s=>s.value="0");
+}
+
+function fechar(){
+ form.classList.add("hidden");
+ atual=null;
+}
+</script>
+
+</body>
+</html>
