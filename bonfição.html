@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Controle Financeiro Yoga</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+body{
+    font-family:Arial, sans-serif;
+    background:#f3e9ff;
+    margin:0;
+}
+header{
+    background:linear-gradient(45deg,#a66bff,#40c8ff);
+    color:white;
+    text-align:center;
+    padding:20px;
+    font-size:24px;
+    font-weight:bold;
+}
+.container{
+    width:96%;
+    max-width:900px;
+    background:white;
+    margin:25px auto;
+    padding:20px;
+    border-radius:15px;
+    box-shadow:0 0 12px #00000022;
+}
+label{
+    font-weight:bold;
+    margin-top:10px;
+    display:block;
+}
+input,select{
+    width:100%;
+    padding:8px;
+    margin-top:5px;
+    border-radius:8px;
+    border:1px solid #999;
+}
+button{
+    margin-top:15px;
+    width:100%;
+    padding:10px;
+    background:#8f57ff;
+    border:none;
+    color:white;
+    border-radius:8px;
+    font-size:16px;
+    cursor:pointer;
+}
+button:hover{background:#7d4ceb;}
+
+.resumo{
+    display:flex;
+    gap:10px;
+    margin-top:20px;
+    flex-wrap:wrap;
+}
+.card{
+    flex:1;
+    padding:15px;
+    border-radius:12px;
+    text-align:center;
+    font-weight:bold;
+}
+.entrada{background:#d4f7dc;color:#136b2f;}
+.saida{background:#ffd6d6;color:#8b1e1e;}
+.saldo{background:#e0d9ff;color:#3a2f8f;}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:20px;
+}
+th,td{
+    padding:10px;
+    border-bottom:1px solid #ddd;
+}
+th{
+    background:#a66bff;
+    color:white;
+}
+.delete{
+    background:#ff4d4d;
+    border:none;
+    color:white;
+    padding:5px 8px;
+    border-radius:6px;
+    cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<header>Controle de Entradas e Saídas - Yoga</header>
+
+<div class="container">
+
+<label>Mês:</label>
+<select id="mes"></select>
+
+<label>Tipo:</label>
+<select id="tipo" onchange="atualizarLabel()">
+    <option value="yoga">Yoga (Entrada)</option>
+    <option value="lojinha">Lojinha (Entrada)</option>
+    <option value="prof">Pagamento Professores (Saída)</option>
+</select>
+
+<label id="labelNome">Nome do aluno:</label>
+<input id="nomePessoa">
+
+<label>Forma de pagamento:</label>
+<select id="pagamento">
+    <option>Pix</option>
+    <option>Dinheiro</option>
+</select>
+
+<label>Descrição:</label>
+<input id="descricao">
+
+<label>Valor R$:</label>
+<input id="valor" type="number">
+
+<button id="btnAdd">Adicionar</button>
+
+<div class="resumo">
+    <div class="card entrada">Entradas<br>R$ <span id="totalEntrada">0</span></div>
+    <div class="card saida">Saídas<br>R$ <span id="totalSaida">0</span></div>
+    <div class="card saldo">Saldo<br>R$ <span id="saldo">0</span></div>
+</div>
+
+<table>
+<thead>
+<tr>
+    <th>Tipo</th>
+    <th>Nome</th>
+    <th>Pagamento</th>
+    <th>Descrição</th>
+    <th>Valor</th>
+    <th>Data</th>
+    <th>Excluir</th>
+</tr>
+</thead>
+<tbody id="tabela"></tbody>
+</table>
+
+</div>
+
+<!-- FIREBASE -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import {
+  getFirestore, collection, addDoc,
+  getDocs, deleteDoc, doc
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+// 🔥 CONFIG QUE VOCÊ MANDOU
+const firebaseConfig = {
+  apiKey: "AIzaSyDyD1PIfduFrLl-vXlBVisZFirQ3iKi2vI",
+  authDomain: "yoga-4abef.firebaseapp.com",
+  projectId: "yoga-4abef",
+  storageBucket: "yoga-4abef.firebasestorage.app",
+  messagingSenderId: "217283131263",
+  appId: "1:217283131263:web:0431c954294ce56d7ecc4a"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ===== MESES =====
+const meses=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const mesSel=document.getElementById("mes");
+
+meses.forEach(m=>{
+    let o=document.createElement("option");
+    o.value=m;
+    o.textContent=m;
+    mesSel.appendChild(o);
+});
+mesSel.value=meses[new Date().getMonth()];
+mesSel.onchange=carregar;
+
+window.atualizarLabel = function(){
+    const tipo=document.getElementById("tipo").value;
+    const label=document.getElementById("labelNome");
+    if(tipo==="yoga") label.textContent="Nome do aluno:";
+    else if(tipo==="prof") label.textContent="Nome do professor:";
+    else label.textContent="Nome / Referência:";
+}
+
+// ===== ADD =====
+document.getElementById("btnAdd").onclick = async () => {
+    const tipo=document.getElementById("tipo").value;
+    const movimento = (tipo==="prof") ? "saida" : "entrada";
+
+    await addDoc(collection(db,"movimentacoes",mesSel.value,"itens"),{
+        tipo,
+        movimento,
+        nome:nomePessoa.value,
+        pagamento:pagamento.value,
+        descricao:descricao.value,
+        valor:Number(valor.value),
+        data:new Date().toLocaleString("pt-BR")
+    });
+
+    nomePessoa.value="";
+    descricao.value="";
+    valor.value="";
+    carregar();
+};
+
+// ===== LISTAR =====
+async function carregar(){
+    const tb=document.getElementById("tabela");
+    tb.innerHTML="";
+    let ent=0, sai=0;
+
+    const snap = await getDocs(collection(db,"movimentacoes",mesSel.value,"itens"));
+    snap.forEach(d=>{
+        const e=d.data();
+        e.movimento==="entrada"? ent+=e.valor : sai+=e.valor;
+
+        tb.innerHTML+=`
+        <tr>
+            <td>${e.movimento==="entrada"?"Entrada":"Saída"}</td>
+            <td>${e.nome}</td>
+            <td>${e.pagamento}</td>
+            <td>${e.descricao}</td>
+            <td>R$ ${e.valor.toFixed(2)}</td>
+            <td>${e.data}</td>
+            <td><button class="delete" onclick="excluir('${d.id}')">X</button></td>
+        </tr>`;
+    });
+
+    totalEntrada.textContent=ent.toFixed(2);
+    totalSaida.textContent=sai.toFixed(2);
+    saldo.textContent=(ent-sai).toFixed(2);
+}
+
+window.excluir = async (id)=>{
+    await deleteDoc(doc(db,"movimentacoes",mesSel.value,"itens",id));
+    carregar();
+};
+
+carregar();
+</script>
+
+</body>
+</html>
